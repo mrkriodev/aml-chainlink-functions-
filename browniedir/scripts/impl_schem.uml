@@ -1,0 +1,31 @@
+@startuml
+title Partner Rating Contracts - Simple Scheme
+left to right direction
+
+actor Partner
+actor Sender
+cloud "External API\npumpdumpapp.com" as Api
+node "Chainlink Functions DON" as Don
+
+rectangle "RateProxyFactory" as Factory
+rectangle "ServiceDepositProxy\n(per partner)" as Proxy
+rectangle "RatingRouter" as Router
+
+Partner --> Factory : deploy / createProxy()
+Factory --> Proxy : creates
+Factory --> Router : uses router address
+Partner --> Proxy : setPartnerUsers(...)
+
+Sender --> Proxy : depositFor(beneficiary)
+Proxy --> Router : requestRating(sender)
+Router --> Don : sendRequest
+Don --> Api : HTTP GET /api/rate/{sender}
+Don --> Router : callback(rating)
+Router --> Proxy : handleRating(...)
+
+note bottom of Proxy
+Accepted: credit beneficiary balance
+Rejected: refund sender
+end note
+
+@enduml

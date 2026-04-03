@@ -9,3 +9,10 @@ Router address:
 
 возможно надо npm i @chainlink/contracts 
 
+RatingRouter is the contract that triggers Chainlink Functions, which calls your Web2 API.
+RateProxyFactory stores router address in constructor.
+createProxy() deploys a new ServiceDepositProxy and passes that router address to it.
+ServiceDepositProxy then calls router when deposit comes in:
+depositFor(beneficiary) -> IRatingRouter(router).requestRating(msg.sender)
+So each proxy “knows” the same router and uses it as the only rating gateway.
+Then router callback calls back into that proxy via handleRating(...).
