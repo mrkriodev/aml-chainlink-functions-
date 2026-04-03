@@ -1,0 +1,35 @@
+sequenceDiagram
+    autonumber
+    participant U as Operator (brownie run)
+    participant S as check_partner_contract.py
+    participant E as .env
+    participant P as ServiceDepositProxy
+    participant R as RatingRouter
+    participant C as Chainlink DON
+    participant A as External API (pumpdumpapp)
+
+    U->>S: run main(proxy_address, users_csv, amount, timeout, poll)
+    S->>E: load_dotenv()
+    S->>E: read PARTNER_PROXY_ADDRESS / PARTNER_USERS_CSV / TESTING_SENDER_PRIV_KEY
+    S->>P: at(proxy_address), read router(), MIN_RATING(), partnerUsers(beneficiary)
+    alt beneficiary is not allowed
+        S-->>U: raise ValueError("Beneficiary ... is not configured")
+    else beneficiary allowed
+        S->>P: depositFor(beneficiary) from TESTING_SENDER_PRIV_KEY with ETH
+        Note over P: stores pendingRequests[requestId]\n(sender, beneficiary, amount)
+        P->>R: requestRating(sender)
+        R->>C: _sendRequest(CBOR, subId, gas, donId)
+        C->>A: HTTP GET /api/rate/{sender}
+        A-->>C: {"rate": number}
+        C-->>R: callback _fulfillRequest(requestId, response/err)
+        R->>P: handleRating(requestId, sender, rating)
+        alt rating > MIN_RATING
+            P->>P: balances[beneficiary] += amount\nsenderRate[sender] = rating\nsenderAccepted[sender] = true
+        else rating <= MIN_RATING or error->0
+            P-->>sender: refund amount
+            P->>P: senderRate[sender] = rating\nsenderAccepted[sender] = false
+        end
+        S->>P: poll pendingRequests(requestId) until sender == zero
+        S->>P: getSenderRateState(sender), balances(user_i), partnerUsers(user_i)
+        S-->>U: print requestId, fulfilled, sender rate state, beneficiary balances
+    end
