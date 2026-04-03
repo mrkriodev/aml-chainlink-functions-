@@ -1,0 +1,8 @@
+live:
+  - name: ethereum-live-testnet
+    networks:
+      - name: Sepolia-b6-infura
+        id: sepolia-b6-infura
+        chainid: 11155111
+        host: https://sepolia.infura.io/v3/b673126bbeee4604ba4421c92ccbf219
+        explorer: https://api-sepolia.etherscan.io/api

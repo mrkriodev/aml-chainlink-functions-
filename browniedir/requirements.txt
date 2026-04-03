@@ -1,0 +1,6 @@
+eth-brownie==1.20.6
+web3
+aiofiles
+packaging
+solc-select
+python-dotenv

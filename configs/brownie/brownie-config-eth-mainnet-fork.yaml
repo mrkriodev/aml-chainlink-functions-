@@ -1,0 +1,9 @@
+development:
+  - name: eth-mainnet-fork
+    id: eth-mainnet-fork
+    host: http://127.0.0.1:8545
+    cmd: ganache-cli
+    cmd_settings:
+      fork: https://mainnet.infura.io/v3/b673126bbeee4604ba4421c92ccbf219
+      network_id: 1
+      port: 8545

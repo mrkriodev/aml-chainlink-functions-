@@ -1,0 +1,2 @@
+brownie run scripts/deploy.py --network eth-mainnet-fork
+brownie test --network eth-mainnet-fork

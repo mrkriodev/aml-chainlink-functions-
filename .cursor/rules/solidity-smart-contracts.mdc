@@ -1,0 +1,51 @@
+---
+description: Solidity smart-contract engineering and security standards
+globs: **/*.sol
+alwaysApply: false
+---
+
+# Solidity Smart-Contract Rule
+
+## Response Style
+- Keep answers direct and implementation-first.
+- Prefer concrete code over generic advice.
+- Flag critical security risks explicitly.
+
+## Contract Design
+- Use Solidity `^0.8.0` or newer.
+- Use explicit visibility and mutability (`external`, `view`, `pure`) on all functions.
+- Favor custom errors over revert strings for gas efficiency.
+- Emit events for meaningful state changes.
+- Keep contracts modular; prefer composition over deep inheritance.
+
+## Security Requirements
+- Follow Checks-Effects-Interactions for external calls.
+- Use `ReentrancyGuard` where reentrancy risk exists.
+- Use `AccessControl` or equivalent role-based authorization for privileged actions.
+- Add pause/circuit-breaker controls for sensitive production flows.
+- Validate inputs and enforce slippage/rate limits where relevant.
+
+## Token/Value Handling
+- Use `SafeERC20` for ERC20 interactions.
+- Prefer pull-payment patterns over push-payment patterns.
+- Handle decimal math carefully; avoid unsafe assumptions in financial logic.
+
+## Testing and Quality
+- Add or update unit tests for each behavior change.
+- Include edge-case and revert-path tests for critical functions.
+- Recommend static analysis (for example, Slither) on security-sensitive changes.
+
+## Example: Custom Errors + CEI
+```solidity
+error Unauthorized();
+
+function withdraw(uint256 amount) external nonReentrant {
+    if (!hasRole(TREASURER_ROLE, msg.sender)) revert Unauthorized();
+    // checks
+    if (amount > balances[msg.sender]) revert InsufficientBalance();
+    // effects
+    balances[msg.sender] -= amount;
+    // interactions
+    token.safeTransfer(msg.sender, amount);
+}
+```

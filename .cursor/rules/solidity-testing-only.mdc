@@ -1,0 +1,40 @@
+---
+description: Solidity testing standards for smart-contract test files only
+globs: **/*.t.sol
+alwaysApply: false
+---
+
+# Solidity Testing-Only Rule
+
+## Test Design
+- Write focused tests with one clear behavior per test.
+- Name tests by behavior and expected outcome.
+- Cover success, failure, and edge cases for each public/external function.
+
+## Security-Critical Coverage
+- Add tests for access control boundaries and unauthorized callers.
+- Add tests for reentrancy-sensitive flows and state transition safety.
+- Add tests for pause/unpause or emergency controls when implemented.
+
+## Financial Logic Coverage
+- Test boundary values (`0`, `1`, max realistic values).
+- Verify rounding and decimal behavior explicitly.
+- Assert invariants (for example: balances and total accounting stay consistent).
+
+## Revert and Event Assertions
+- Assert custom errors for expected failure paths.
+- Assert key events and event parameters for state-changing actions.
+
+## Test Quality
+- Keep setup minimal and deterministic.
+- Avoid duplicated setup; use helper functions and fixtures.
+- Prefer explicit assertions over broad "no revert" checks.
+
+## Example
+```solidity
+function test_Withdraw_RevertsWhenNotTreasurer() public {
+    vm.prank(alice);
+    vm.expectRevert(Unauthorized.selector);
+    vault.withdraw(1 ether);
+}
+```

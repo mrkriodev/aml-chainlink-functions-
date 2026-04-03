@@ -1,0 +1,160 @@
+1. 🧠 Core контракт (Router)
+
+Единая точка:
+
+отправляет Chainlink запрос
+хранит pending
+возвращает результат
+вызывает callback у сервиса
+
+2. 🧩 Proxy / Consumer (для партнёров)
+
+Каждый партнёр:
+
+деплоит свой proxy (или clone)
+вызывает router
+получает результат через callback
+
+3. 🏭 Factory (опционально, но круто)
+
+Ты:
+
+деплоишь factory
+партнёр нажимает кнопку → получает готовый proxy
+
+/////// Интерфейс для партнёров
+interface IRatingConsumer {
+    function handleRating(
+        bytes32 requestId,
+        address user,
+        uint256 rating
+    ) external;
+}
+
+++++++++++
+ВАЖНЫЙ БАГ (и как исправить)
+
+В proxy нельзя использовать msg.value в callback ❗
+(он всегда = 0)
+
+Исправление:
+mapping(bytes32 => uint256) public amounts;
+и:
+
+amounts[reqId] = msg.value;
+
+
+-----------
+3. FACTORY (масштабирование)
+contract ProxyFactory {
+    address public router;
+
+    event ProxyCreated(address proxy, address owner);
+
+    constructor(address _router) {
+        router = _router;
+    }
+
+    function createProxy() external returns (address) {
+        ServiceDepositProxy proxy = new ServiceDepositProxy(router);
+
+        emit ProxyCreated(address(proxy), msg.sender);
+
+        return address(proxy);
+    }
+}
+
+
+Если хочешь — следующим шагом сделаем:
+
+👉 версию с подписью API (anti-tampering уровень Chainlink DON + cryptographic proof)
+👉 или billing + лимиты как у Infura / Alchemy
+
+Это уже прям production-grade 🔥
+
+++++++++
+Сейчас у тебя:
+
+Chainlink Functions → твой API → rating
+
+Проблема:
+
+Chainlink может вернуть ошибку
+API может быть недоступен
+DON может лагать
+
+Добавляем fallback-логику:
+
+1. Primary → Chainlink Functions (API)
+2. Fallback → 
+   - либо второй API
+   - либо signed response (preferred)
+   - либо on-chain cache
+
+Fallback
+подписанный ответ от твоего backend (ECDSA)
+
+Router делает Chainlink запрос
+Если:
+❌ ошибка
+❌ timeout
+❌ мусорный ответ
+
+👉 тогда используем fallback:
+
+signed payload от backend:
+(user, rating, timestamp, signature)
+
+Как backend работает
+1. видит requestId (event)
+2. делает API запрос
+3. подписывает:
+   hash(requestId, user, rating, timestamp)
+4. вызывает fulfillFallback()
+
+
+
+brownie run scripts/deploy_core_rate_router.py --network sepolia-b6-infura
+Running 'scripts\deploy_core_rate_router.py::main'...
+Active network: sepolia-b6-infura
+Mode: testnet
+Deployer: 0xaeb2C18381e0aade848DBa97D15a877Af25811f0
+Chainlink router: 0xb83E47C2bC239B3bf370bc41e1459A34b41238D0
+Subscription ID: 6443
+DON ID: 0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000
+Transaction sent: 0xd2157c8a078cd026365f250954313cafe3f078777eb8693831433ad57bd155d6
+  Max fee: 0.002878018 gwei   Priority fee: 0.001 gwei   Gas limit: 1397394   Nonce: 5
+  RatingRouter.constructor confirmed   Block: 10581924   Gas used: 1259198 (90.11%)   Gas price: 0.001929076 gwei
+  RatingRouter deployed at: 0x504d5934fBBd3EC170E579c73036Cb0DE8196dD4
+
+Deployment tx: 0xd2157c8a078cd026365f250954313cafe3f078777eb8693831433ad57bd155d6
+RatingRouter deployed at: 0x504d5934fBBd3EC170E579c73036Cb0DE8196dD4
+Add this address as a Consumer in your Chainlink Functions subscription.
+
+++++
+brownie run scripts/deploy_proxy_factory.py --network sepolia-b6-infura
+
+Running 'scripts\deploy_proxy_factory.py::main'...
+Active network: sepolia-b6-infura
+Mode: testnet
+Deployer: 0xaeb2C18381e0aade848DBa97D15a877Af25811f0
+Core router: 0x504d5934fBBd3EC170E579c73036Cb0DE8196dD4
+Transaction sent: 0x0f9946cf2267b8c9d0d37fcd803fd866bc57e693002b96ddbb482285fd041dd9
+  Max fee: 0.002782643 gwei   Priority fee: 0.000995639 gwei   Gas limit: 590533   Nonce: 6
+  RateProxyFactory.constructor confirmed   Block: 10581934   Gas used: 531464 (90.00%)   Gas price: 
+0.001830164 gwei
+  RateProxyFactory deployed at: 0x93eE8D7e524c7DB036edb06a8d2D881110106cA2
+
+Deployment tx: 0x0f9946cf2267b8c9d0d37fcd803fd866bc57e693002b96ddbb482285fd041dd9
+RateProxyFactory deployed at: 0x93eE8D7e524c7DB036edb06a8d2D881110106cA2
+
++++
+brownie run scripts/create_partner_proxy.py --network sepolia-b6-infura
+
++++++++++++==========++++++++++++
+Chainlink consumer permission should be granted to the core router contract
+Add the deployed RatingRouter address as a Consumer in your Chainlink Functions 
+subscription (same Sub ID/network).
+
+******************
+brownie run scripts/check_partner_contract.py --network sepolia-b6-infura
