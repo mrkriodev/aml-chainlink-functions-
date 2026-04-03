@@ -8,6 +8,7 @@ interface IRatingRouter {
 contract ServiceDepositProxy {
     address public router;
     address public owner;
+    bool public initialized;
 
     uint256 public constant MIN_RATING = 50;
 
@@ -28,34 +29,49 @@ contract ServiceDepositProxy {
     event DepositRequested(bytes32 indexed requestId, address indexed sender, address indexed beneficiary, uint256 amount);
     event PartnerUserSet(address indexed user, bool allowed);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event Initialized(address indexed router, address indexed owner);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
         _;
     }
 
-    constructor(address _router, address _owner) {
-        router = _router;
-        owner = _owner;
+    modifier onlyInitialized() {
+        require(initialized, "Not initialized");
+        _;
     }
 
-    receive() external payable {
+    constructor() {
+        initialized = true;
+    }
+
+    function initialize(address _router, address _owner) external {
+        require(!initialized, "Already initialized");
+        require(_router != address(0), "Bad router");
+        require(_owner != address(0), "Bad owner");
+        router = _router;
+        owner = _owner;
+        initialized = true;
+        emit Initialized(_router, _owner);
+    }
+
+    receive() external payable onlyInitialized {
         revert("Use depositFor(address)");
     }
 
-    function transferOwnership(address newOwner) external onlyOwner {
+    function transferOwnership(address newOwner) external onlyInitialized onlyOwner {
         require(newOwner != address(0), "Bad owner");
         emit OwnershipTransferred(owner, newOwner);
         owner = newOwner;
     }
 
-    function setPartnerUser(address user, bool allowed) external onlyOwner {
+    function setPartnerUser(address user, bool allowed) external onlyInitialized onlyOwner {
         require(user != address(0), "Bad user");
         partnerUsers[user] = allowed;
         emit PartnerUserSet(user, allowed);
     }
 
-    function setPartnerUsers(address[] calldata users, bool allowed) external onlyOwner {
+    function setPartnerUsers(address[] calldata users, bool allowed) external onlyInitialized onlyOwner {
         for (uint256 i = 0; i < users.length; i++) {
             address user = users[i];
             require(user != address(0), "Bad user");
@@ -64,7 +80,7 @@ contract ServiceDepositProxy {
         }
     }
 
-    function depositFor(address beneficiary) external payable returns (bytes32 requestId) {
+    function depositFor(address beneficiary) external payable onlyInitialized returns (bytes32 requestId) {
         require(msg.value > 0, "No ETH");
         require(partnerUsers[beneficiary], "Unknown partner user");
 
@@ -77,7 +93,7 @@ contract ServiceDepositProxy {
         bytes32 requestId,
         address user,
         uint256 rating
-    ) external {
+    ) external onlyInitialized {
         require(msg.sender == router, "Only router");
 
         PendingRequest memory req = pendingRequests[requestId];
@@ -98,7 +114,7 @@ contract ServiceDepositProxy {
         }
     }
 
-    function getSenderRateState(address user) external view returns (uint256 rating, bool accepted) {
+    function getSenderRateState(address user) external view onlyInitialized returns (uint256 rating, bool accepted) {
         rating = senderRate[user];
         accepted = senderAccepted[user];
     }

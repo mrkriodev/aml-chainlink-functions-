@@ -1,0 +1,33 @@
+@startuml
+title EIP-1167 Clone Architecture (Factory + Partner Proxy)
+left to right direction
+
+actor Partner
+actor Sender
+
+rectangle "RateProxyFactory" as Factory
+rectangle "ServiceDepositProxy\nImplementation" as Impl
+rectangle "ServiceDepositProxy\nClone (Partner Instance)" as Clone
+rectangle "RatingRouter" as Router
+node "Chainlink DON" as Don
+cloud "External API\npumpdumpapp.com" as Api
+
+Partner --> Factory : deploy/use
+Factory --> Impl : deploy once in constructor
+Factory --> Clone : Clones.clone(Impl)
+Factory --> Clone : initialize(router, owner=msg.sender)
+
+Partner --> Clone : setPartnerUsers(...)
+Sender --> Clone : depositFor(beneficiary)
+Clone --> Router : requestRating(sender)
+Router --> Don : _sendRequest(...)
+Don --> Api : HTTP GET /api/rate/{sender}
+Don --> Router : callback(rating)
+Router --> Clone : handleRating(requestId, sender, rating)
+
+note bottom of Clone
+Accepted:\n balances[beneficiary] += amount
+\nRejected:\n refund sender
+end note
+
+@enduml
