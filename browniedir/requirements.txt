@@ -4,3 +4,5 @@ aiofiles
 packaging
 solc-select
 python-dotenv
+ecdsa
+coincurve
