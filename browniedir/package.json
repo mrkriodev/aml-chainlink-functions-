@@ -12,5 +12,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "@chainlink/functions-toolkit": "^0.3.2",
+    "axios": "^1.15.0",
+    "dotenv": "^17.4.2"
+  }
 }
