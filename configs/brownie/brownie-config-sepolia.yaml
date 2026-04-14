@@ -4,5 +4,5 @@ live:
       - name: Sepolia-b6-infura
         id: sepolia-b6-infura
         chainid: 11155111
-        host: https://sepolia.infura.io/v3/b673126bbeee4604ba4421c92ccbf219
+        host: https://sepolia.infura.io/v3/87c381c41fab413292c965db3323cf0a
         explorer: https://api-sepolia.etherscan.io/api
