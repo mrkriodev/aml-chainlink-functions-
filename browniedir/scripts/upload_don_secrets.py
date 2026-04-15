@@ -2,6 +2,7 @@ import argparse
 import base64
 import json
 import os
+import random
 import time
 from pathlib import Path
 from typing import List
@@ -88,7 +89,8 @@ def _build_payload(private_key_hex: str, slot_id: int, encrypted_secrets_hex: st
 
 
 def _send_to_gateway(gateway_url: str, private_key_hex: str, don_id: str, payload: dict):
-    message_id = str(int(time.time() * 1000))
+    # Match toolkit behavior: random uint32 represented as string.
+    message_id = str(random.randint(0, (2**32) - 1))
     method = "secrets_set"
     receiver = ""
 
@@ -123,7 +125,12 @@ def _send_to_gateway(gateway_url: str, private_key_hex: str, don_id: str, payloa
     print("\n[DEBUG] Gateway request curl:")
     print(curl_cmd)
 
-    response = requests.post(gateway_url, json=req, timeout=30)
+    response = requests.post(
+        gateway_url,
+        data=req_json.encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        timeout=30,
+    )
     if response.status_code >= 400:
         try:
             body = response.json()
@@ -167,7 +174,11 @@ def main():
     parser = argparse.ArgumentParser(
         description="Upload encrypted DON-hosted secrets using gateway method secrets_set."
     )
-    parser.add_argument("--private-key", default=os.getenv("DEPLOYER_PRIVATE_KEY"))
+    parser.add_argument(
+        "--private-key",
+        default=os.getenv("CHAINLINK_SECRETS_UPLOADER_PRIVATE_KEY", os.getenv("DEPLOYER_PRIVATE_KEY")),
+        help="Private key used to sign storage and gateway messages",
+    )
     parser.add_argument("--don-id", default=os.getenv("CHAINLINK_DON_ID_TEXT", "fun-ethereum-sepolia-1"))
     parser.add_argument("--gateway-urls", default=os.getenv("CHAINLINK_GATEWAY_URLS", DEFAULT_GATEWAY_URLS))
     parser.add_argument("--slot-id", type=int, default=int(os.getenv("CHAINLINK_SECRETS_SLOT_ID", "0")))
